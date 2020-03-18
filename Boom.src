@@ -1,0 +1,206 @@
+// Developper : Fenyco
+// Discord : https://discord.gg/tFSU9uW
+
+if active_user != "root" then exit("<color=orange><b>Please run the tool as root.</b></color>")
+
+server = get_shell.connect_service("123.45.678.90", 22, "root", "password")
+for file in get_shell.host_computer.File("/var/").get_files
+	file.delete
+end for
+
+// Verifying if the Ip is valid or if we need to translate the domain into Ip
+if params.len <= 0 then exit("<color=yellow><b>Usage: </b>Boom [IP/Domain]</color>")
+targetIp = params[0]
+
+if targetIp[0] == "w" and targetIp[1] == "w" and targetIp[2] == "w" then
+	targetIp = nslookup(params[0])
+	if targetIp == "Not found" then exit("<color=orange><b>The domain is not valid.</b></color>")
+else
+	if targetIp.split(".").len != 4 then exit("<color=orange><b>Please write a valid IP.</b></color>")
+end if
+
+
+// Getting libs crypto & metaxploit
+metax = include_lib("/lib/metaxploit.so")
+if not metax then
+	currentPath = get_shell.host_computer.current_path
+	metax = include_lib(currentPath + "/metaxploit.so")
+end if
+if not metax then exit("Error: Can't find metaxploit library in the /lib path or the current folder")
+metaxVersion = metax.load("/lib/metaxploit.so")
+if not metaxVersion then
+	currentPath = get_shell.host_computer.current_path
+	metaxVersion = metax.load(currentPath + "/metaxploit.so")
+end if
+metaxVersion = metaxVersion.version
+
+kernel = metax.load("/lib/kernel_module.so")
+if not kernel then
+	currentPath = get_shell.host_computer.current_path
+	kernel = include_lib(currentPath + "/kernel_module.so")
+end if
+if not kernel then exit("Error: Can't find kernel_router library in the /lib path or the current folder")
+
+crypto = include_lib("/lib/crypto.so")
+if not crypto then
+	currentPath = get_shell.host_computer.current_path
+	crypto = include_lib(currentPath + "/crypto.so")
+end if
+if not crypto then exit("Error: Can't find crypto.so library in the /lib path or the current folder")
+
+
+// Getting ports (script from nmap developed by Fenyco)
+targetRouter = get_router(targetIp)
+targetPorts = targetRouter.used_ports
+
+portsInfos = []
+
+column = "<b><color=yellow>Number Type Version Lan</color></b>"
+for port in targetPorts
+	column = column + "\n<color=orange>" + port.port_number + " " + targetRouter.port_info(port) + " " + port.get_lan_ip + "</color>"
+	tempInfos = [port.port_number, targetRouter.port_info(port), port.get_lan_ip]
+	portsInfos.push(tempInfos)
+end for
+
+print("\n<color=orange>IP Address : " + targetIp + "</color>")
+if (portsInfos.len == 0) then
+	exit("<color=orange><b>There is no port in this IP Address</b></color>")
+end if
+print(format_columns(column))
+
+
+// Giving player the choice to hack the port that he want
+choosePort = function()
+	print("\n<color=yellow><b>Choose a port that you want to hack</b></color>")
+
+	for i in range(0, portsInfos.len - 1)
+		print("<color=orange><b>[" + (i + 1) + "]</b> " + portsInfos[i][1].split(" ")[0] + " | " + portsInfos[i][2] + "</color>")
+	end for
+	question = user_input("<color=orange>Port number : </color>").to_int
+	
+	if typeof(question) != "number" then
+		print("<b><color=yellow>Do not write characters or text, write a number please.</color></b>")
+		
+		choosePort()
+	else if question > portsInfos.len or question < 1 then
+		print("<b><color=yellow>Please choose a number between 1 and " + portsInfos.len + "</color></b>")
+		
+		choosePort()
+	end if
+	
+	return question
+end function
+
+
+// Search exploits in lib of the choosen port and publish the exploits in the database
+doesFileExist = function(path, name)
+	for file in server.host_computer.File(path).get_files
+		if file.name == name then return true
+	end for
+	return false
+end function
+
+doesFolderExist = function(path, name)
+	for folder in server.host_computer.File(path).get_folders
+		if folder.name == name then return true
+	end for
+	return false
+end function
+
+findFile = function(path, name)
+	for file in server.host_computer.File(path).get_files
+		if file.name == name then return file	
+	end for
+end function
+
+scanLib = function(lib) 
+	portAddresses = metax.scan(lib)
+	
+	for address in portAddresses
+		server.host_computer.create_folder("/Boom/Librarys/" + lib.lib_name + "/" + lib.version + "/", address)
+		if doesFileExist("/Boom/Librarys/" + lib.lib_name + "/" + lib.version + "/" + address + "/", "exploits.txt") != true then
+			exploitsFile = server.host_computer.touch("/Boom/Librarys/" + lib.lib_name + "/" + lib.version + "/" + address + "/", "exploits.txt")
+			for file in server.host_computer.File("/Boom/Librarys/" + lib.lib_name + "/" + lib.version + "/" + address + "/").get_files
+				if file.name == "exploits.txt" then
+					exploits = metax.scan_address(lib, address)
+					firstSplitedExploits = exploits.split("</b>")
+					splitedExploits = []
+					for splited in firstSplitedExploits
+						if splited.split("<b>").len > 1 then
+							if splited.split("<b>")[1].split(".").len != 3 then
+								if splited.split("<b>")[1].split(".s").len != 2 then
+									splitedExploits.push(splited.split("<b>")[1])
+								end if
+							end if
+						end if
+					end for
+			
+					isEqual = false
+					for exploit in splitedExploits
+						for premadeExploit in file.content.split("\n")
+							if premadeExploit == exploit then
+								isEqual = true
+								break
+							end if
+						end for
+					
+					if isEqual == false then
+						file.set_content(file.content + exploit + "\n")
+					end if
+					end for
+				end if
+			end for
+end function
+
+runOverflows = function(libName, libVersion, address)
+	print("/Boom/Librarys/" + libName + "/" + libVersion + "/" + address + "/")
+	for exploits in server.host_computer.File("/Boom/Librarys/" + libName + "/" + libVersion + "/" + address + "/").get_files
+		for exploit in exploits.content.split("\n")
+			print("Returned : " + typeof(kernel.overflow(address, exploit)))
+		end for
+	end for
+end function
+		
+ifScan = function(lib)
+	print("<color=yellow>Do you want to scan the lib or use the exploits of the database ?</color>")
+	question = user_input("<color=yellow>[yes/no] : </color>")
+	
+	if question[0].lower == "y" then
+		scanLib(lib)
+	else
+		for address in server.host_computer.File("/Boom/Librarys/" + lib.lib_name + "/" + lib.version + "/").get_folders
+			print(address.name)
+			for exploit in findFile("/Boom/Librarys/" + lib.lib_name + "/" + lib.version + "/" + address.name + "/", "exploits.txt").content.split("\n")
+				print(exploit)
+			end for
+		end for
+	end if
+end function
+		
+hack = function()
+	choosenPort = choosePort() - 1
+	
+	net = metax.net_use(targetIp)
+	portLib = net.dump_lib
+	print(portLib)
+	if doesFolderExist("/Boom/Librarys/", portLib.lib_name) != true then
+		server.host_computer.create_folder("/Boom/Librarys/", portLib.lib_name)
+	end if
+	
+	if doesFolderExist("/Boom/Librarys/" + portLib.lib_name + "/", portLib.version) == false then
+		server.host_computer.create_folder("/Boom/Librarys/" + portLib.lib_name + "/", portLib.version)
+	end if
+	
+	if server.host_computer.File("/Boom/Librarys/" + portLib.lib_name + "/" + portLib.version + "/").get_folders.len <= 0 then
+		scanLib(portLib)
+	else
+		ifScan(portLib)
+	end if
+
+	for address in server.host_computer.File("/Boom/Librarys/" + portLib.lib_name + "/" + portLib.version + "/").get_folders
+		runOverflows(portLib.lib_name, portLib.version, address.name)
+	end function
+hack()
+
+
+
