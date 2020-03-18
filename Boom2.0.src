@@ -1,0 +1,43 @@
+orange = function(text)
+	text = "<color=orange>" + text + "</color>"
+	return text
+end function
+
+yellow = function(text)
+	text = "<color=yellow>" + text + "</color>"
+	return text
+end function
+
+red = function(text)
+	text = "<color=red>" + text + "</color>"
+	return text
+end function
+
+bold = function(text)
+	text = "<b>" + text + "</b>"
+	return text
+end function
+
+// -------------------------------------------------
+
+if params.len <= 0 then exit(orange(bold("Usage:") + " Boom [IP]"))
+targetIp = params[0]
+
+getIpOfDomain = function(domain)
+	if domain.split(".").len == 3 then
+		return nslookup(domain)
+	else
+		print(bold(orange("This is not a valid domain")))
+		return false
+	end if
+end function
+
+if targetIp[0] == "w" and targetIp[0] == "w" and targetIp[0] == "w" then
+	targetIp = getIpOfDomain(targetIp)
+	print(targetIp)
+end if
+
+isValidIp = function(ip)
+	if ip.split(".").len == 4 then return true
+	return false
+end function
