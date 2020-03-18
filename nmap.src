@@ -1,0 +1,20 @@
+if params.len == 0 then exit("<b>Usage: </b>nmap [IP]")
+
+target_ip = params[0]
+if target_ip.split(".").len != 4 and params[0][0] != "w" then exit("Please write a valid IP.")
+
+if target_ip[0] == "w" and target_ip[1] == "w" and target_ip[2] == "w" then target_ip = nslookup(target_ip)
+if target_ip == "Not found" then
+	exit("<color=red><b>That domain is not valid.</b></color>")
+end if
+
+target_router = get_router(target_ip)
+target_ports = target_router.used_ports
+
+column = "<b>Number Type Version IP</b>"
+for port in target_ports
+	column = column + "\n" + port.port_number + " " + target_router.port_info(port) + " " + port.get_lan_ip
+end for
+
+print("\nIP Address : " + target_ip)
+print(format_columns(column))
