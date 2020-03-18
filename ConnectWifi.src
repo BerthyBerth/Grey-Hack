@@ -1,0 +1,73 @@
+computer = get_shell.host_computer
+
+crypto = include_lib("/lib/crypto.so")
+if not crypto then
+	currentPath = get_shell.host_computer.current_path
+	cryptools = include_lib(currentPath + "/crypto.so")
+end if
+if not crypto then exit("Error: Can't find crypto.so library in the /lib path or the current folder")
+
+if computer.network_devices.split(" ")[2] == "False" then crypto.airmon("start", "eth0")
+
+iwlist = computer.wifi_networks(computer.network_devices.split(" ")[0])
+for i in range(0, iwlist.len - 1)
+	iwlist[i] = iwlist[i].split(" ")
+end for
+
+for i in range(0, iwlist.len - 1)
+	if iwlist[i][1].len == 2 then
+		if i < 9 then
+			print("<b><color=yellow>[" + (i + 1) +"]</color></b> <color=orange> 0" + iwlist[i][1] + " | " + iwlist[i][2] + "</color>")
+		else
+			print("<b><color=yellow>[" + (i + 1) +"]</color></b> <color=orange>0" + iwlist[i][1] + " | " + iwlist[i][2] + "</color>")
+		end if
+	else
+		if i < 9 then
+			print("<b><color=yellow>[" + (i + 1) +"]</color></b> <color=orange> " + iwlist[i][1] + " | " + iwlist[i][2] + "</color>")
+		else
+			print("<b><color=yellow>[" + (i + 1) +"]</color></b> <color=orange>" + iwlist[i][1] + " | " + iwlist[i][2] + "</color>")
+		end if
+	end if
+end for
+
+askNetwork = function()
+	number = user_input("<color=orange>Number : </color>").to_int - 1
+	if typeof(number) != "number" then
+		print(typeof(number))
+		print("Please write number, not letters or charaters.")
+		
+		askNetwork()
+	end if
+
+	if number > iwlist.len - 1 or number < 0 then
+		print("Please write a number between 1 and " + iwlist.len)
+		
+		askNetwork()
+	end if
+
+	return number
+end function
+whichNetwork = askNetwork()
+
+print("<b><color=yellow>Copy (ctrl + shift + c) : aireplay -b " + iwlist[whichNetwork][0] + " -e " + iwlist[whichNetwork][2] + "</color></b>")
+print("<color=yellow>Run that command on another terminal. Press ctrl + c after like 1 to 2 minutes to end the command on the second terminal.</color>")
+
+decrypt = function()
+	user_input("<b><color=orange>Press enter once aireplay stopped.</color></b>")
+	if active_user != "root" then
+		network_info = crypto.aircrack("/home/" + active_user + "/file.cap")
+	else
+		network_info = crypto.aircrack("/root/file.cap")
+	end if
+
+	if network_info == null then
+		print("<color=orange>Do aireplay another time, but wait more time to have more <u>acks</u></color>")
+		print("<b><color=yellow>Copy (ctrl + shift + c) : aireplay -b " + iwlist[whichNetwork][0] + " -e " + iwlist[whichNetwork][2] + "</color></b>")
+		decrypt()
+	end if
+
+	return network_info
+end function
+print("<b><color=yellow>The password is <u>" + decrypt() + "</u></color></b>")
+
+get_shell.host_computer.connect_wifi("eth0", iwlist[whichNetwork][0], iwlist[whichNetwork][2], decrypt())
