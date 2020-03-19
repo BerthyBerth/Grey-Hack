@@ -1,3 +1,19 @@
+// Connecting to server and masking the ip of the server
+// We are running this first, because we dont want a bug to make that the user see the ip of the server in /var/system.log
+if active_user != "root" then exit("<b><color=orange>Please run the tool as root user. Type 'sudo -s', put your password and run the tool.</color></b>")
+
+deleteLog = function()
+	server = get_shell.connect_service("IP", 22, "root", "password")
+	for file in get_shell.host_computer.File("/var/").get_files
+		if file.name == "system.log" then file.delete
+	end for
+end function
+deleteLog()
+
+// -------------------------------------------------
+// Functions for the frontend of the tool (esthetic)
+
+// Put the text given in parameter in color
 orange = function(text)
 	text = "<color=orange>" + text + "</color>"
 	return text
@@ -19,10 +35,13 @@ bold = function(text)
 end function
 
 // -------------------------------------------------
+// System to get the Ip of the target
 
+// See if there is no params, exit the usage of the command
 if params.len <= 0 then exit(orange(bold("Usage:") + " Boom [IP]"))
 targetIp = params[0]
 
+// Function to get the Ip behind the domain
 getIpOfDomain = function(domain)
 	if domain.split(".").len == 3 then
 		return nslookup(domain)
@@ -32,12 +51,59 @@ getIpOfDomain = function(domain)
 	end if
 end function
 
-if targetIp[0] == "w" and targetIp[0] == "w" and targetIp[0] == "w" then
-	targetIp = getIpOfDomain(targetIp)
-	print(targetIp)
-end if
-
+// Function to see if the Ip is valid
 isValidIp = function(ip)
-	if ip.split(".").len == 4 then return true
+	if targetIp.split(".").len == 4 then return true
 	return false
 end function
+
+// See if the Ip given is a domain, if it is an Ip it verify if the Ip is valid
+if targetIp[0] == "w" and targetIp[0] == "w" and targetIp[0] == "w" then
+	domain = targetIp
+	targetIp = getIpOfDomain(targetIp)
+else
+	if isValidIp() == false then exit(orange(bold("The Ip address is invalid")))
+end if
+
+// -------------------------------------------------
+// Get ports and print ports info, also create a main menu
+
+// Get the router of the given Ip
+targetRouter = get_router(targetIp)
+if targetRouter == null then exit(bold(orange("The Ip has not been found.")))
+
+// Get ports of the router of the target
+targetPorts = targetRouter.used_ports
+
+// Creating a cavas with the infos of the router
+portCanva = function(router)
+	router.used_ports
+	canvaData = bold(orange("NUMBER TYPE VERSION LAN"))
+	for port in targetPorts
+		portInfos = targetRouter.port_info(port)
+		portType = portInfos.split(" ")[0]
+		portVersion = portInfos.split(" ")[1]
+		portNumber = port.port_number
+		portLan = port.get_lan_ip
+		canvaData = canvaData + "\n" + yellow(portNumber + " " + portType + " " + portVersion + " " + portLan)
+	end for
+	print(format_columns(canvaData))
+	print(orange("------------------------------------------"))
+end function
+portCanva(targetRouter)
+
+askPort = function()
+	for i in range(0, targetPorts.len - 1)
+		print(bold("[" + (i + 1) + "] ") + targetRouter.port_info(targetPorts[i]).split(" ")[0] + " | " + targetPorts[i].get_lan_ip)
+	end for
+	
+	print(orange("Choose the port that you want to hack"))
+	choose = user_input(yellow("Port : ")).to_int - 1
+	
+	if choose != "number" then askport()
+	return choose
+end function
+choosenPort = askPort()
+
+// -------------------------------------------------
+// Get the library of the port and scan it
