@@ -11,6 +11,36 @@ end function
 deleteLog()
 
 // -------------------------------------------------
+// Getting libs crypto & metaxploit
+metax = include_lib("/lib/metaxploit.so")
+if not metax then
+	currentPath = get_shell.host_computer.current_path
+	metax = include_lib(currentPath + "/metaxploit.so")
+end if
+if not metax then exit("Error: Can't find metaxploit library in the /lib path or the current folder")
+metaxVersion = metax.load("/lib/metaxploit.so")
+if not metaxVersion then
+	currentPath = get_shell.host_computer.current_path
+	metaxVersion = metax.load(currentPath + "/metaxploit.so")
+end if
+metaxVersion = metaxVersion.version
+
+kernel = metax.load("/lib/kernel_module.so")
+if not kernel then
+	currentPath = get_shell.host_computer.current_path
+	kernel = include_lib(currentPath + "/kernel_module.so")
+end if
+if not kernel then exit("Error: Can't find kernel_router library in the /lib path or the current folder")
+
+crypto = include_lib("/lib/crypto.so")
+if not crypto then
+	currentPath = get_shell.host_computer.current_path
+	crypto = include_lib(currentPath + "/crypto.so")
+end if
+if not crypto then exit("Error: Can't find crypto.so library in the /lib path or the current folder")
+
+
+// -------------------------------------------------
 // Functions for the frontend of the tool (esthetic)
 
 // Put the text given in parameter in color
@@ -107,3 +137,19 @@ choosenPort = askPort()
 
 // -------------------------------------------------
 // Get the library of the port and scan it
+
+// Function to scan lib and print the result of the scan in the file with the directory of the lib
+scanLib = function(ip, port)
+
+	PortLib = metax.net_use(ip, port)
+	PortLib = PortLib.dump_lib
+	PortAddresses = metax.scan(PortLib)
+	print(PortLib.version)
+	for address in PortAddresses
+
+		print(yellow(metax.scan_address(PortLib, address)))
+
+	end for
+
+end function
+scanLib(targetIp, targetPorts[choosenPort].port_number)
