@@ -182,7 +182,7 @@ RegisterNewServer = function()
     port = Encrypt(user_input("Server's port : "), key)
     service = Encrypt(user_input("Server's service (ssh/ftp) : "), key)
     user = Encrypt(user_input("Server's user : "), key)
-    password = Encrypt(user_input("Server's : password : "), key)
+    password = Encrypt(user_input("Server's : password : ", true), key)
 
     if GetServersFile.content.split("\n")[0].len == 0 then
         GetServersFile.set_content(name + ":" + ip + ":" + port + ":" + service + ":" + user + ":" + password)
