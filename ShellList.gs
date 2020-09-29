@@ -143,9 +143,8 @@ ListServers = function()
             service = Decrypt(server_info[3], key)
             user = Decrypt(server_info[4], key)
             password = Decrypt(server_info[5], key)
-
-            print(ip + " | " + port  + " | " + user + " | " + password + " | " + service)
-
+            
+            clear_screen()
             get_shell.connect_service(ip, port, user, password, service).start_terminal
         else if choice2 == 2 then
             file_new_content = GetServersFile.content.split("\n").remove(choice - 1)
