@@ -186,7 +186,7 @@ RegisterNewServer = function()
     if GetServersFile.content.split("\n")[0].len == 0 then
         GetServersFile.set_content(name + ":" + ip + ":" + port + ":" + service + ":" + user + ":" + password)
     else
-        GetServersFile.set_content("\n" + name + ":" + ip + ":" + port + ":" + service + ":" + user + ":" + password)
+        GetServersFile.set_content(GetServersFile.content + "\n" + name + ":" + ip + ":" + port + ":" + service + ":" + user + ":" + password)
     end if
 
     MainMenu()
